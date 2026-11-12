@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设计说明 — 常联系</title>
+<meta name="description" content="常联系的交互原则、适老化规范依据、能力边界与隐私策略。">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html">常联系</a>
+  <nav class="topnav" aria-label="站点导航">
+    <a href="family.html">家属演示</a>
+    <a href="design.html" aria-current="page">设计说明</a>
+    <a href="devlog.html">开发记录</a>
+  </nav>
+</header>
+
+<main class="article">
+  <h1>设计说明</h1>
+
+  <h2>能力边界（先说清楚）</h2>
+  <ul>
+    <li>本站是<strong>浏览器内的交互演示</strong>：没有接入微信，不会发起任何真实通话，没有后端和账号。</li>
+    <li>演示中的人物照片由 AI 生成、声音由 AI 合成，全部为虚构素材；真实产品使用家人本人的照片和录音。</li>
+    <li>真正的 Android 应用（Kotlin + Jetpack Compose）正在同步开发；微信真实拨出属于独立技术验证，未验证前不做任何"已打通"的宣称。进展见<a href="devlog.html">开发记录</a>。</li>
+    <li>家属演示的配置改动只保存在当前浏览器（localStorage），不是跨设备同步。</li>
+  </ul>
+
+  <h2>要解决的问题</h2>
+  <p>一些老人能认出照片、听出熟人的声音，也已经会刷短视频，但不会读联系人姓名、在微信里寻找聊天对象、记住多步操作。常联系把「辨认目标—选择对象—发起联系」压缩成：<strong>一屏一位家人大照片，上下滑动换人，点照片就联系</strong>。发生问题时，手机用简单的话说清楚发生了什么。</p>
+
+  <h2>交互原则</h2>
+  <ul>
+    <li><strong>一屏一人</strong>：主页每屏只有一位家人，没有导航、搜索、菜单和设置按钮。</li>
+    <li><strong>两个动作</strong>：上下滑动换家人；点照片（或家属设置的独立大按钮）拨打。</li>
+    <li><strong>家人真人声音</strong>：页面停稳后播放这位家人事先录制的短音频，帮助确认"这是我要找的人"。演示站用合成音占位。</li>
+    <li><strong>状态可听、失败能返回</strong>：呼叫中、失败、结束都有简短语音；失败后回到原来那张照片，不自动重拨。</li>
+    <li><strong>不循环</strong>：滑到第一位/最后一位就停住，减少迷失。</li>
+    <li><strong>家属做设置</strong>：老人日常页面没有配置入口；家属通过隐藏入口＋PIN 维护。</li>
+    <li><strong>失败关闭</strong>：任何身份不确定都不拨号，绝不拨错人。</li>
+  </ul>
+
+  <h2>视觉与适老化依据</h2>
+  <p>全站一套暖浅色系：暖纸 <code>#F7F7F3</code>、墨 <code>#1B1B1B</code>、松绿 <code>#22754F</code>（主要操作）、枣红 <code>#B43F3B</code>（挂断/危险）。主文字对比度约 16:1，白字绿底约 5.7:1，白字红底约 5.6:1，均超过规范底线。系统无衬线字体，老人端称呼 38px、状态文字 28px，主要点击区远大于 60pt。动效只响应操作，尊重系统"减少动态"设置。</p>
+  <table>
+    <tr><th>规范来源</th><th>采用的要求</th></tr>
+    <tr><td>工信部《移动互联网应用（APP）适老化通用设计规范》</td><td>无衬线字体；适老版主界面文字 ≥30dp/pt；对比度 ≥4.5:1（大字号 ≥3:1）；禁广告弹窗</td></tr>
+    <tr><td>微信长辈就医适老化设计规范</td><td>正文 ≥18pt；主要点击区 ≥60×60pt；行距 ≥1.3；颜色不作唯一信息手段；避免复杂手势</td></tr>
+    <tr><td>WCAG 2.2</td><td>对比度 AA；可见键盘焦点；减少动态偏好</td></tr>
+  </table>
+
+  <h2>呼叫状态与诚实表达</h2>
+  <p>演示区分「请求发起 ≠ 已拨通 ≠ 已接听」：点击后进入"正在帮你给小芳打电话"（模拟），2.5 秒后按演示控制台的设定走向"模拟接通"或"无人接听/无网络"。模拟接通页明确写"模拟视频中，无真实音视频"。双击不会产生两次呼叫；呼叫发起即锁定联系人，滑动不会拨错人。</p>
+
+  <h2>隐私策略</h2>
+  <ul>
+    <li>演示站不收集任何个人信息，无统计、无广告、无第三方脚本。</li>
+    <li>真实产品：照片和录音仅保存在老人手机本地私有目录，默认不上云；不读取聊天记录、不遍历通讯录、不定位。</li>
+    <li>家属远程配置属于后续阶段，需要设备绑定与授权，不允许远程开启摄像头/麦克风或自动接听。</li>
+  </ul>
+
+  <h2>参考与许可</h2>
+  <p>设计参考了三个开源适老项目（仅研究思路，未复制代码）：银杏 Yinxing（v2.3.0 及以前源码 GPL-3.0-only）、SemplicePhone（GPL-3.0-or-later，其远程门户 AGPL-3.0）、BaldPhone（Apache-2.0）。本站为独立原创实现。</p>
+
+  <h2>用户测试计划</h2>
+  <p>Android 真机版完成后，将邀请 3–5 位目标老人做首轮测试：指定联系人识别正确率、首次独立完成率、误拨率、异常恢复、3–7 天后复测。测试只记录必要的匿名数据，出现误拨风险立即终止。结果会如实更新到<a href="devlog.html">开发记录</a>。</p>
+</main>
+
+<footer class="footer"><p>常联系 · 2026 Qoder 高校创造力大赛 Hack4Good 技术向善赛道 · 演示素材均为虚构</p></footer>
+</body>
+</html>

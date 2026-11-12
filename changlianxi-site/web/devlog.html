@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开发记录 — 常联系</title>
+<meta name="description" content="常联系用 Qoder 开发的真实过程记录：需求、设计、实现与验证证据。">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html">常联系</a>
+  <nav class="topnav" aria-label="站点导航">
+    <a href="family.html">家属演示</a>
+    <a href="design.html">设计说明</a>
+    <a href="devlog.html" aria-current="page">开发记录</a>
+  </nav>
+</header>
+
+<main class="article">
+  <h1>开发记录</h1>
+  <p>本页记录用 Qoder 开发常联系的真实过程与验证证据。<span class="tag">持续更新</span> 未验证的事项会明确标注，不虚构结果。</p>
+
+  <div class="log-entry">
+    <p class="log-date">2026-11-10</p>
+    <h3>需求与设计基线</h3>
+    <p>与 Qoder 协作完成 PRD v0.1 与开发 SPEC v0.1：确定「一屏一人、滑动、真人录音、点照片拨打」的核心交互，P0 只做本地功能与模拟通话，微信真实接入列为独立验证，不阻塞基本交互。</p>
+  </div>
+
+  <div class="log-entry">
+    <p class="log-date">2026-11-10</p>
+    <h3>参考调研与环境搭建</h3>
+    <p>克隆并核验三个开源参考仓库的许可证与可用源码范围（银杏仅 v2.3.0 及以前开源；SemplicePhone 远程门户为 AGPL；BaldPhone 为 Apache-2.0），与主工程隔离、不复制代码。搭建 Android 环境：conda 独立环境 + JDK 17、Android Studio、SDK 与模拟器镜像（D 盘）。</p>
+  </div>
+
+  <div class="log-entry">
+    <p class="log-date">2026-11-10</p>
+    <h3>Sites 演示设计决策</h3>
+    <p>通过逐条决策访谈确定：虚构素材＋预生成音频、首屏即演示、全站暖浅色系。产出详细设计文档（视觉 Token、状态机、素材清单、验收清单），并安装 frontend-design 技能辅助设计。</p>
+  </div>
+
+  <div class="log-entry">
+    <p class="log-date">2026-11-11</p>
+    <h3>演示站 V1+V2 实现</h3>
+    <p>原生 HTML/CSS/JS 实现：首屏手机模拟器（滑动选人、停稳播声、模拟呼叫/来电/异常）、演示控制台、家属配置演示（localStorage）、设计说明页。照片由 AI 生成（3 位虚构家人），语音由 AI 合成预生成。</p>
+    <p><strong>验证状态：</strong><span class="tag">本地浏览器验证</span> 核心流程与响应式已在本地浏览器实测；<span class="tag">待验证</span> 发布后的公开访问、iOS Safari 真机音频策略。</p>
+  </div>
+
+  <div class="log-entry">
+    <p class="log-date">2026-11-11</p>
+    <h3>演示升级：奶奶视角＋六位家人＋家属增删联动</h3>
+    <p>把使用者明确为奶奶，重做全部素材：六位朴实真实感的中国家人肖像（女儿、孙子、老伴爷爷、孙女、儿子、儿媳，均非俊男靓女），并按角色重新合成家人本人语气的语音、来电语音与系统提示（拨号／无人接听／断网／未设置／挂断）。家属演示页新增「添加家人」与删除、排序、换人、默认联系人配置，改动通过 localStorage 实时联动奶奶端：新增家人即在老人端多出一页。呼叫分支与真机 App T5 状态机一致（响铃页内由演示控制选择接通／无人接听／断网）。</p>
+    <p><strong>验证状态：</strong><span class="tag">本地浏览器验证</span> 素材加载、增删改排序与跨页联动、点按/按钮拨打、各呼叫分支与模拟来电均已实测，无控制台报错；<span class="tag">待验证</span> 发布后的公开访问与移动端真机音频策略。</p>
+  </div>
+
+  <div class="log-entry">
+    <p class="log-date">进行中</p>
+    <h3>Android 真机版（并行轨）</h3>
+    <p>Kotlin + Jetpack Compose 工程搭建中。计划：本地家属配置 → 老人主页 VerticalPager → 语音与异常 → 模拟通话状态机 → 真机试用。目标设备：Redmi Turbo（具体型号待 adb 读取）。</p>
+    <p><strong>验证状态：</strong><span class="tag">未验证</span> APK 构建与真机流程尚未完成，完成后在此贴出实际结果。</p>
+  </div>
+
+  <h2>已知限制</h2>
+  <ul>
+    <li>演示站无真实通话能力，微信接入未开始。</li>
+    <li>家属演示配置仅当前浏览器生效；不提供素材上传。</li>
+    <li>浏览器自动播放策略要求首次点击后才能出声（演示已做引导）。</li>
+    <li>老人用户测试尚未进行，交互假设（一屏一人＋滑动是否最优）待真实用户验证。</li>
+  </ul>
+</main>
+
+<footer class="footer"><p>常联系 · 2026 Qoder 高校创造力大赛 Hack4Good 技术向善赛道 · 演示素材均为虚构</p></footer>
+</body>
+</html>

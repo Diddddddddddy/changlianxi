@@ -1,0 +1,96 @@
+# 常联系（changlianxi）
+
+面向低识字老人的极简亲情通讯 Android App。核心交互：一屏一位家人大照片、上下滑动换人、播放家人本人录音、点照片发起联系。
+
+> 公益表达：「想你了，就见一面。」
+
+## 文档
+
+- [产品设计文档 PRD v0.1](docs/常联系-产品设计文档-PRD-v0.1.md)
+- [开发规格 SPEC v0.1](docs/常联系-开发规格-SPEC-v0.1.md)
+- [Sites 演示设计 DESIGN v0.1](docs/常联系-Sites演示设计-DESIGN-v0.1.md)
+
+配套交付物：`../changlianxi-site/`（Qoder Sites 公开交互演示，比赛提交物）；`../changlianxi-references/`（开源参考，只读隔离，不复制代码）。
+
+## 技术栈
+
+Kotlin + Jetpack Compose（Material 3）+ VerticalPager；ViewModel/StateFlow；本地配置与私有媒体文件；`CallGateway` 接口 + `DemoCallGateway` 模拟适配器。P0 无网络权限、无通讯录权限。
+
+- `minSdk = 26`（暂定，待目标真机确认）、`compileSdk = targetSdk = 36`
+- AGP 8.12.0 / Kotlin 2.2.0 / Gradle 8.14.3 / Compose BOM 2025.06.00
+
+## 环境
+
+- JDK 17：conda 环境 `changlianxi`（`C:\env\anaconda\envs\changlianxi`，java 在 `Library\bin`）
+- Android SDK：`D:\Android\Sdk`（见 `local.properties`）
+- Gradle 缓存：`D:\Android\gradle-home`（C 盘空间紧张，大件均放 D 盘）
+
+## 构建与测试（Git Bash）
+
+```bash
+export JAVA_HOME='C:\env\anaconda\envs\changlianxi\Library'
+export GRADLE_USER_HOME='D:\Android\gradle-home'
+./gradlew.bat :app:assembleDebug        # 产出 app/build/outputs/apk/debug/app-debug.apk
+./gradlew.bat :app:testDebugUnitTest    # 单元测试
+./gradlew.bat :app:lintDebug            # 静态检查
+```
+
+安装到设备：`D:\Android\Sdk\platform-tools\adb.exe install -r app/build/outputs/apk/debug/app-debug.apk`
+
+## 当前状态
+
+- T1：最小工程可构建，`assembleDebug` 成功。
+- T2（已完成，模拟器实测通过）：本地联系人模型与家属配置。
+  - 家属引导：首启欢迎页 → 创建 PIN（PBKDF2-SHA256 12 万次迭代，4–6 位，5 次错误锁 5 分钟，不落明文）。
+  - 联系人编辑：系统照片选择器（免权限）、录音（RECORD_AUDIO 运行时授权、<800ms 拒绝、≤60s）、导入音频、试听、设为默认、排序、删除（默认删除后自动顺延）。
+  - 存储：JSON 配置临时文件+原子改名、损坏自动备份；媒体暂存→提交两阶段，文件名绑定联系人 id，照片/语音不错位。
+  - 老人首页：全屏默认联系人照片+大字号称呼；顶部隐区 4 秒长按进家属 PIN 验证；退后台自动锁定家属页。
+  - 验证：JVM 单元测试 39/39 通过；模拟器全流程实测（`tools/verify_family.py`、`tools/verify_record.py`），3 位联系人持久化、强杀重启恢复、照片/音频 id 绑定、录音替换为真实 AAC 均通过；截图证据 `screenshots/t2-01`…`t2-31`。
+- T3（已完成，模拟器实测通过）：老人主页 VerticalPager 一页一人、滑动稳定检测、两种拨号模式。
+  - 一页一人：`VerticalPager` + `rememberPagerState`，`key=contactId`；`settledPage`/`isScrollInProgress` 判定停稳，停稳才允许拨号；边界不循环、不越界。
+  - 两种模式：点照片拨打（TAP_PHOTO，整页可点+电话图标）/ 独立大按钮拨打（LARGE_BUTTON，点照片不拨、仅绿色「打电话」大按钮拨）。
+  - 模拟呼叫页：暗化照片+「模拟演示」徽标+「正在呼叫 {称呼}」+「不会真实拨出电话」+红色取消（AC-11 诚实标注）；`CallGateway` 接缝 + `DemoCallGateway` 纯本地，`requestId` 幂等、双击只产生一次呼叫、呼叫中锁定联系人。
+  - 排序/删除后按 `contactId` 恢复当前目标；单联系人界面稳定。
+  - 验证：JVM 单元测试 39/39 通过；模拟器全流程实测（`tools/verify_pager.py`）——一轮 20 次上下滑动无越界/错位/误拨、快速连滑只停最终页、两种模式拨号、双击单次呼叫、排序恢复、单联系人 6 次滑动稳定均通过；截图证据 `screenshots/t3-01`…`t3-07`。
+- T4（已完成，模拟器实测通过）：停稳播放本人录音、音频焦点与生命周期、状态声音。
+  - 停稳播放：页面停稳延迟 300ms 播放该联系人本人录音；换页立即取消旧待播任务并停播，快速连滑只播最终停住页；单一 `VoicePlayer`（世代号 token）保证不叠音；尊重 `autoPlayVoice` 开关；仅播已提交录音（`playbackVoice`），缺失返回 null 不崩溃。
+  - 音频焦点：播放持 `AUDIOFOCUS_GAIN_TRANSIENT`（USAGE_MEDIA/SPEECH），失焦即停，stop/退后台放弃焦点。
+  - 状态声音：`StatusVoice` 系统中文 TTS，固定短句（`StatusPhrases`：请求/没联网/没打出去，事件一一对应，绝不把请求说成已接通）；无可用 TTS 静默降级（界面文字仍在），不崩溃。
+  - 生命周期：退后台（onStop）立即停录音+停状态声+取消待播；回前台按 id 恢复不崩溃。
+  - 验证：JVM 单元测试 43/43 通过（新增 `StatusPhrasesTest`、`MediaFiles.playbackVoice`）；模拟器实测（`tools/verify_audio.py`，以 logcat 音频焦点事件为证）——停稳请求焦点播放、10 次快速连滑无叠音且只播最终页、HOME 退后台立即放弃焦点不再播放、拨号状态声路径无崩溃、缺录音不崩溃均通过；截图 `screenshots/t4-01`…`t4-02`。
+- T5（已完成，模拟器实测通过）：DemoCallGateway 呼叫状态机与模拟来电／失败回退。
+  - 状态机：纯逻辑 `CallStateMachine`（`CallPhase`：Idle/Preparing/DemoRinging/DemoConnected/IncomingDemo/Failed/Finished），保持「请求发起 ≠ 已拨通 ≠ 已接听」语义；每次迁移须匹配 requestId 与源状态，过期／重复事件拒绝。
+  - 防重复呼叫：仅 Idle 接受拨打，双击只一个 requestId（AC-09）；呼叫全程锁定 contactId（AC-10）；挂断只执行一次（AC-13）。
+  - 演示分支：拨号→响铃→「模拟对方接听」→接通→挂断；「模拟无人接听」／「模拟断网失败」→失败页（正确语音+「返回」回原联系人，不声称已接通，AC-17）；家属页「模拟来电（演示）」→来电页点照片接听／红色拒接（两触控区独立，AC-12）。
+  - 诚实标注：所有呼叫/来电/接通/失败页均带「模拟演示」徽标与「非真实通话」说明（AC-11）；`DemoCallGateway` 纯本地，不产生真实网络呼叫。
+  - 验证：JVM 单元测试 55/55 通过（新增 `CallStateMachineTest` 12 项覆盖幂等/过期事件/各分支）；模拟器实测（`tools/verify_call.py`）——拨号接听挂断、双击单次、无人接听回退、断网回退、响铃取消、来电接听挂断、来电拒接均通过；截图 `screenshots/t5-01`…`t5-05`。
+- T6（自动化检查已完成，真机／老人试用待硬件）：lint 0 错误（11 条良性告警：依赖版本提示、有意竖屏锁定、图标单色属性）；单元测试 55/55；`assembleDebug` 产出 APK 10.7MB；合并清单仅 `RECORD_AUDIO`（AC-26 满足）。验证表见下。
+- 微信真实拨出（P1）、远程配置（P3）、自有 RTC（P4）均不在 P0，单独验证。
+
+## 验证表（T6）
+
+| 类别 | 项目 | 状态 / 证据 |
+|---|---|---|
+| 已验证 | 构建与静态检查 | `assembleDebug` APK 10.7MB；`lintDebug` 0 错误 |
+| 已验证 | 单元测试 | 55/55（排序/默认/删除/迁移/PIN/媒体绑定/状态机/requestId 幂等/状态短句） |
+| 已验证 | P0 权限最小化（AC-26） | 合并清单仅 `RECORD_AUDIO`，无网络/通讯录/相机/无障碍/位置 |
+| 已验证 | 家属配置全流程（T2） | `verify_family.py`/`verify_record.py`，持久化+强杀恢复+id 绑定 |
+| 已验证 | 老人首页滑动（T3） | `verify_pager.py`，20 次滑动无越界/误拨、两种模式、单联系人 |
+| 已验证 | 停稳录音与音频焦点（T4） | `verify_audio.py`，logcat 焦点事件为证，无叠音/退后台停播 |
+| 已验证 | 呼叫状态机各分支（T5） | `verify_call.py`，幂等/锁定/接听/无人接听/断网/来电/拒接 |
+| 尚未验证 | 红米真机试用 | 待用户插 USB 开调试（任务 #7） |
+| 尚未验证 | HyperOS 关怀模式布局／无障碍开启路径 | 待真机（任务 #7） |
+| 尚未验证 | 老人使用测试（识别/误触/耗时） | 需真实老人参与者与知情同意 |
+| 尚未验证 | Compose UI 自动化（androidTest） | 暂以 uiautomator 脚本替代，未编写 instrumented 测试 |
+| 尚未验证 | 微信真实视频（P1） | 未启动，需单独确认+真机（SPEC §14.1） |
+| 已知限制 | P0 呼叫为纯本地模拟 | 设计如此，全程「模拟演示／非真实通话」诚实标注 |
+| 已知限制 | 模拟器手势阈值 | headless 软件渲染需 300ms 高速度滑动；真机阈值待复核 |
+| 已知限制 | `minSdk=26` 暂定 | 待目标真机确认 |
+| 已知限制 | TTS 依赖系统中文语音包 | 缺失时静默降级，界面文字仍在 |
+| 已知限制 | 演示素材全虚构 | 公开站点与日志不含真实家属照片/录音/手机号 |
+
+## 模拟器验证工具（不进 APK）
+
+`tools/emu.py`（uiautomator 辅助）、`tools/seed.py`（run-as 播种 3 位演示联系人，PIN 2468）、`tools/verify_family.py`、`tools/verify_record.py`、`tools/verify_pager.py`、`tools/verify_audio.py`、`tools/verify_call.py`。运行：`cd tools && python verify_family.py`（需 MSYS_NO_PATHCONV=1、PYTHONIOENCODING=utf-8）。
+
+> 模拟器输入注意：本 headless 软件渲染 AVD 上 `input swipe` 慢拖（≥800ms）常被分页器判为未达阈值而不翻页；验证脚本统一用 300ms 高速度滑动 + ≥1.6s 停稳等待，可靠触发单页翻页。

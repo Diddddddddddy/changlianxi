@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>常联系 — 想你了，就见一面</title>
+<meta name="description" content="常联系：帮不识字的长辈自己找到家人、发起视频。一屏一位家人大照片，上下滑动换人，点照片就联系。本页为可交互模拟演示。">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html">常联系</a>
+  <nav class="topnav" aria-label="站点导航">
+    <a href="family.html">家属演示</a>
+    <a href="design.html">设计说明</a>
+    <a href="devlog.html">开发记录</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero" aria-label="产品演示">
+    <div class="hero-copy">
+      <h1 class="display">想你了，<br>就见一面。</h1>
+      <p class="lede">常联系，帮不识字的长辈自己找到家人、发起视频。<br>一屏一位家人大照片，上下滑动换人，点照片就联系。</p>
+      <p class="demo-note">本页为模拟互动演示，人物照片与声音均为虚构素材，不会真的拨出电话。</p>
+      <div class="howto">
+        <p>手机上试一试：</p>
+        <ol>
+          <li>点「开启声音」，听到家人本人录音</li>
+          <li>上下滑动照片，换一位家人</li>
+          <li>点照片，体验一次模拟视频呼叫</li>
+        </ol>
+      </div>
+      <button id="enable-audio" class="btn btn-primary" type="button">开启声音</button>
+      <p class="audio-status" id="audio-status" role="status"></p>
+    </div>
+
+    <div class="hero-demo">
+      <div class="phone-wrap">
+        <div class="swipe-hint" aria-hidden="true">
+          <svg class="hint-chev hint-up" width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M2 10l9-8 9 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="hint-rail"><i></i></div>
+          <svg class="hint-chev hint-down" width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M2 2l9 8 9-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>上下滑动</span>
+        </div>
+        <div id="phone-root" class="phone-root"></div>
+      </div>
+      <aside class="console" aria-label="演示控制">
+        <p class="console-title">演示控制<small>（评委工具，非老人界面）</small></p>
+        <div class="console-group">
+          <button id="console-incoming" class="btn btn-outline" type="button">模拟来电</button>
+          <button id="console-reset" class="btn btn-outline" type="button">重置演示</button>
+        </div>
+        <p class="console-note">拨号后，在呼叫页内用「演示控制」选择接通／无人接听／断网，与真机 App 一致。</p>
+        <fieldset class="console-group">
+          <legend>拨打方式</legend>
+          <label><input type="radio" name="dialmode" value="tap" checked> 点照片拨打</label>
+          <label><input type="radio" name="dialmode" value="button"> 独立大按钮拨打</label>
+        </fieldset>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section" id="why" aria-label="为什么做">
+    <h2>为什么做</h2>
+    <div class="why-grid">
+      <p class="why-line">奶奶会刷短视频，<br>却找不到微信里的我们。</p>
+      <p class="why-line">她想我们了，<br>只能等我们打过去。</p>
+      <p class="why-line">她不识字，<br>但她认得我们的脸，听得出我们的声音。</p>
+    </div>
+    <p class="section-note">常联系把「找联系人」变成「认照片、听声音」，把多步操作变成一次滑动、一次点击。家属提前设置好照片和录音，奶奶打开就能用。</p>
+  </section>
+
+  <section class="section" id="boundary" aria-label="能力边界">
+    <h2>这个演示能做什么、不能做什么</h2>
+    <ul class="plain-list">
+      <li>这是浏览器里的交互演示：滑动选人、听录音、模拟呼叫、模拟来电、异常恢复都可以亲手体验。</li>
+      <li>它没有接入微信，不会发起任何真实通话；「模拟演示」标识全程可见。</li>
+      <li>人物照片由 AI 生成、声音由 AI 合成，均为虚构演示素材；真实产品使用家人本人的照片和录音。</li>
+      <li>真正的 Android 应用正在同步开发，真机验证进展见<a href="devlog.html">开发记录</a>。</li>
+    </ul>
+    <p class="section-note"><a href="design.html">设计说明</a>里写了交互原则、适老化规范依据和隐私策略。</p>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>常联系 · 2026 Qoder 高校创造力大赛 Hack4Good 技术向善赛道 · 演示素材均为虚构</p>
+</footer>
+
+<script type="module" src="assets/js/main.js"></script>
+</body>
+</html>

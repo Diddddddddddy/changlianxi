@@ -1,0 +1,33 @@
+# === Qoder / 工具内部产物（不公开） ===
+.qoder/
+.studio-page.html
+skills-lock.json
+*.qoder.site
+
+# === 第三方参考仓库（只读隔离、混合许可证、体积大，不纳入本仓库） ===
+changlianxi-references/
+
+# === 原始生成图与验证截图（体积大，本地留存；公开仓库保持精简） ===
+vibe_images/
+changlianxi/screenshots/
+changlianxi-site/screenshots/
+
+# === Android 构建产物与本地配置 ===
+.gradle/
+build/
+app/build/
+.kotlin/
+local.properties
+.idea/
+*.iml
+captures/
+*.apk
+*.aab
+
+# === Python 缓存 ===
+__pycache__/
+*.pyc
+
+# === 系统 / 编辑器杂项 ===
+.DS_Store
+Thumbs.db

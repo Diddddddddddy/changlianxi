@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家属配置演示 — 常联系</title>
+<meta name="description" content="家属提前设置照片、称呼、声音和拨打方式，老人打开就能用。本页为模拟配置演示，改动仅保存在当前浏览器。">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="index.html">常联系</a>
+  <nav class="topnav" aria-label="站点导航">
+    <a href="family.html" aria-current="page">家属演示</a>
+    <a href="design.html">设计说明</a>
+    <a href="devlog.html">开发记录</a>
+  </nav>
+</header>
+
+<main class="family-layout">
+  <div class="family-panel">
+    <h1>家属做设置，奶奶零配置</h1>
+    <p class="lede-small">真实产品里，家属在奶奶手机上花几分钟设好照片、本人录音和拨打方式。这里用虚构素材体验配置过程：<strong>改动仅保存在当前浏览器</strong>，回到首页即可看到效果，不代表跨设备同步。</p>
+
+    <div id="contact-list"></div>
+
+    <h2 class="add-title">添加家人</h2>
+    <p class="add-hint">从预置的虚构人物中选择添加，照片与本人声音一起带入；添加后右侧奶奶端会同步多出一页。</p>
+    <div id="add-panel"></div>
+
+    <fieldset class="console-group" style="margin-top:24px">
+      <legend>拨打方式（老人端）</legend>
+      <label><input type="radio" name="dialmode" value="tap"> 点照片拨打（默认）</label>
+      <label><input type="radio" name="dialmode" value="button"> 独立大按钮拨打</label>
+    </fieldset>
+
+    <div class="family-actions">
+      <a class="btn btn-primary" href="index.html">去老人端看看效果</a>
+      <button id="family-reset" class="btn btn-outline" type="button">恢复默认配置</button>
+    </div>
+    <p class="family-note">演示限制：照片和声音只能从 6 位预置虚构人物中选择，可添加、删除、排序与换人，但不提供上传，避免真实家人素材进入公开站点；修改称呼只改变显示文字，预置语音仍按所选人物播报。真实产品的家属端支持拍摄/导入照片、录制本人声音、PIN 保护和首次引导，详见<a href="design.html">设计说明</a>。</p>
+  </div>
+
+  <div>
+    <p class="preview-title">奶奶端实时预览（添加家人后这里同步多出一页）</p>
+    <div id="phone-root" class="phone-root"></div>
+  </div>
+</main>
+
+<script type="module" src="assets/js/family.js"></script>
+</body>
+</html>
