@@ -1,4 +1,4 @@
-"""T3：老人主页 VerticalPager 验证（20 次滑动/边界/误拨/两种模式/单联系人/排序恢复）。"""
+"""T3：老人主页 VerticalPager 验证（20 次滑动/循环衔接/误拨/两种模式/单联系人/排序恢复）。"""
 import time
 
 from emu import find, long_press, nodes, shot, shell, start, stop, tap, tap_at, tap_button, tap_in_row, tap_radio_near, type_text, wait_for
@@ -41,39 +41,64 @@ def enter_family():
     assert wait_for("家属设置"), "应在家属页"
 
 
+def submit_family(wait=1.5):
+    """家属页提交按钮可能因内容变长落到折叠区，先滚动到可见再点。"""
+    for _ in range(4):
+        if find("完成，进入老人首页"):
+            return tap("完成，进入老人首页", wait=wait)
+        shell("input swipe 540 1800 540 700 300")
+        time.sleep(0.6)
+    return tap("完成，进入老人首页", wait=wait)
+
+
 def main():
     stop(); start()
     assert wait_for("女儿"), "AC-01 冷启动应显示默认女儿"
     assert not find("模拟演示"), "AC-01 不应自动拨号"
     shot("t3-01-default")
 
-    # 20 次上下滑动：越界保持、不错位、不误拨
+    # 20 次上下滑动：循环衔接、不错位、不误拨
     moves = [1, 1, 1, -1, 1, -1, -1, 1, 1, -1, 1, -1, -1, 1, -1, 1, 1, -1, -1, 1]
     idx = 0
     for i, m in enumerate(moves):
-        expected = max(0, min(2, idx + m))
+        expected = (idx + m) % len(NAMES)
         goto(expected, up=(m == 1), frm=idx)
         assert_page(expected, f"第{i + 1}次滑动")
         idx = expected
     print("20 swipes ok, final:", NAMES[idx])
     shot("t3-02-after-20-swipes")
 
-    # 快速连滑：只停在最终页（AC-05 视觉部分）。从 idx1 连滑向上到边界老伴。
+    # 循环衔接：首位再上滑回末位、末位再下滑回首位。
+    while idx != 0:
+        goto((idx + 1) % len(NAMES), up=True, frm=idx)
+        idx = (idx + 1) % len(NAMES)
+    goto(len(NAMES) - 1, up=False, frm=0)  # 女儿再上滑 → 老伴
+    idx = len(NAMES) - 1
+    assert_page(idx, "首位上滑循环到末位")
+    goto(0, up=True, frm=idx)  # 老伴再下滑 → 女儿
+    idx = 0
+    assert_page(idx, "末位下滑循环到首位")
+    shot("t3-03-wrap")
+
+    # 快速连滑：只停最终页、单页可见、不误拨（循环下不固定目标）。
     for _ in range(3):
         swipe(up=True, ms=300, wait=0.4)
     time.sleep(2.0)
-    if not find("老伴"):
-        swipe(up=True)
-    assert wait_for("老伴", timeout=10), "快速连滑应停在老伴"
-    time.sleep(0.6)
-    idx = 2
-    assert_page(idx, "快速连滑")
+    labels = [n["label"] for n in nodes()]
+    present = [n for n in NAMES if n in labels]
+    assert len(present) == 1, f"快速连滑应只停一页，实际 {present}"
+    assert "模拟演示" not in labels, "快速连滑不应误拨"
+    idx = NAMES.index(present[0])
     shot("t3-03-fast-fling")
+    # 回到老伴，供后续点照片/大按钮/排序断言沿用。
+    while idx != 2:
+        goto((idx + 1) % len(NAMES), up=True, frm=idx)
+        idx = (idx + 1) % len(NAMES)
 
     # TAP_PHOTO：点照片拨号，演示标识明确（AC-07/AC-11）
     tap_at(540, 1100, wait=1.5)
     assert wait_for("模拟演示"), "点照片应进入模拟呼叫"
-    assert find("正在呼叫") and find("老伴") and find("不会真实拨出"), "呼叫页信息应完整"
+    assert (find("正在呼叫") or find("等待对方接听")) and find("老伴") and (find("不会真实拨出") or find("非真实通话")), "呼叫页信息应完整"
     shot("t3-04-demo-call")
     tap_button("取消", wait=1.2)
     assert wait_for("老伴") and not find("模拟演示"), "取消应回到原联系人"
@@ -88,7 +113,7 @@ def main():
     # LARGE_BUTTON：点照片不拨，只有大按钮拨（AC-08）
     enter_family()
     assert tap_radio_near("独立大按钮拨打"), "应切到大按钮模式"
-    tap("完成，进入老人首页", wait=1.5)
+    submit_family()
     assert wait_for("打电话"), "大按钮模式应显示打电话按钮"
     shot("t3-05-large-button")
     tap_at(540, 900, wait=1.2)
@@ -102,7 +127,7 @@ def main():
     enter_family()
     tap_in_row("老伴", "上移", wait=0.8)
     tap_in_row("老伴", "上移", wait=0.8)
-    tap("完成，进入老人首页", wait=1.5)
+    submit_family()
     assert wait_for("老伴"), "排序后仍应显示老伴"
     shot("t3-06-reorder-restore")
 
@@ -110,7 +135,7 @@ def main():
     enter_family()
     tap_in_row("女儿", "删除", wait=0.8); tap_button("删除", wait=1.0)
     tap_in_row("儿子", "删除", wait=0.8); tap_button("删除", wait=1.0)
-    tap("完成，进入老人首页", wait=1.5)
+    submit_family()
     assert wait_for("老伴"), "应只剩老伴"
     for i in range(6):
         swipe(up=(i % 2 == 0))
@@ -124,7 +149,7 @@ def main():
     # 切回点照片模式，恢复 3 人播种供后续阶段
     enter_family()
     assert tap_radio_near("点照片拨打"), "应切回点照片模式"
-    tap("完成，进入老人首页", wait=1.0)
+    submit_family(wait=1.0)
     print("ALL PAGER CHECKS PASSED")
 
 

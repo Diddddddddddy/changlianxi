@@ -47,11 +47,11 @@ export GRADLE_USER_HOME='D:\Android\gradle-home'
   - 老人首页：全屏默认联系人照片+大字号称呼；顶部隐区 4 秒长按进家属 PIN 验证；退后台自动锁定家属页。
   - 验证：JVM 单元测试 39/39 通过；模拟器全流程实测（`tools/verify_family.py`、`tools/verify_record.py`），3 位联系人持久化、强杀重启恢复、照片/音频 id 绑定、录音替换为真实 AAC 均通过；截图证据 `screenshots/t2-01`…`t2-31`。
 - T3（已完成，模拟器实测通过）：老人主页 VerticalPager 一页一人、滑动稳定检测、两种拨号模式。
-  - 一页一人：`VerticalPager` + `rememberPagerState`，`key=contactId`；`settledPage`/`isScrollInProgress` 判定停稳，停稳才允许拨号；边界不循环、不越界。
+  - 一页一人：`VerticalPager` + `rememberPagerState`，虚拟页取模映射联系人实现**循环衔接**（末位下滑回首位、首位上滑回末位；单人停住不循环）；`settledPage`/`isScrollInProgress` 判定停稳，停稳才允许拨号；家属改序后按 `contactId` 恢复当前目标。
   - 两种模式：点照片拨打（TAP_PHOTO，整页可点+电话图标）/ 独立大按钮拨打（LARGE_BUTTON，点照片不拨、仅绿色「打电话」大按钮拨）。
   - 模拟呼叫页：暗化照片+「模拟演示」徽标+「正在呼叫 {称呼}」+「不会真实拨出电话」+红色取消（AC-11 诚实标注）；`CallGateway` 接缝 + `DemoCallGateway` 纯本地，`requestId` 幂等、双击只产生一次呼叫、呼叫中锁定联系人。
   - 排序/删除后按 `contactId` 恢复当前目标；单联系人界面稳定。
-  - 验证：JVM 单元测试 39/39 通过；模拟器全流程实测（`tools/verify_pager.py`）——一轮 20 次上下滑动无越界/错位/误拨、快速连滑只停最终页、两种模式拨号、双击单次呼叫、排序恢复、单联系人 6 次滑动稳定均通过；截图证据 `screenshots/t3-01`…`t3-07`。
+  - 验证：JVM 单元测试 39/39 通过；模拟器全流程实测（`tools/verify_pager.py`）——一轮 20 次上下滑动循环衔接不错位/误拨、首末互wrap、快速连滑只停最终页、两种模式拨号、双击单次呼叫、排序恢复、单联系人 6 次滑动稳定均通过；截图证据 `screenshots/t3-01`…`t3-07`。
 - T4（已完成，模拟器实测通过）：停稳播放本人录音、音频焦点与生命周期、状态声音。
   - 停稳播放：页面停稳延迟 300ms 播放该联系人本人录音；换页立即取消旧待播任务并停播，快速连滑只播最终停住页；单一 `VoicePlayer`（世代号 token）保证不叠音；尊重 `autoPlayVoice` 开关；仅播已提交录音（`playbackVoice`），缺失返回 null 不崩溃。
   - 音频焦点：播放持 `AUDIOFOCUS_GAIN_TRANSIENT`（USAGE_MEDIA/SPEECH），失焦即停，stop/退后台放弃焦点。
@@ -80,7 +80,7 @@ export GRADLE_USER_HOME='D:\Android\gradle-home'
 | 已验证 | 单元测试 | 74/74（排序/默认/删除/迁移/PIN/媒体绑定/状态机/requestId 幂等/状态短句/真实拨号 planner/号码配置往返/旧配置兼容） |
 | 已验证 | 权限最小化（AC-26） | 合并清单 `RECORD_AUDIO` + `CALL_PHONE`（真实拨号专用、老人点击才触发；电话硬件 `required=false`）；无网络/通讯录/相机/无障碍/位置；`CALL_PHONE` 未授权时静默退回零权限 `ACTION_DIAL` |
 | 已验证 | 家属配置全流程（T2） | `verify_family.py`/`verify_record.py`，持久化+强杀恢复+id 绑定 |
-| 已验证 | 老人首页滑动（T3） | `verify_pager.py`，20 次滑动无越界/误拨、两种模式、单联系人 |
+| 已验证 | 老人首页滑动（T3） | `verify_pager.py`，20 次滑动循环衔接、首末互wrap、两种模式、单联系人 |
 | 已验证 | 停稳录音与音频焦点（T4） | `verify_audio.py`，logcat 焦点事件为证，无叠音/退后台停播 |
 | 已验证 | 呼叫状态机各分支（T5） | `verify_call.py`，幂等/锁定/接听/无人接听/断网/来电/拒接 |
 | 已验证 | 真实拨号纯逻辑（T7） | `RealCallPlannerTest` 8 项：Demo 保持模拟、非法号码失败关闭、未授权退回 `ACTION_DIAL`、`SYSTEM_DIALER` 零权限、号码归一化；`CallStateMachineTest` Handoff 相 4 项 |

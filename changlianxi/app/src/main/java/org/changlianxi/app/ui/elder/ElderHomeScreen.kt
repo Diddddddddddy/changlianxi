@@ -61,30 +61,41 @@ fun ElderHomeScreen(
     val initialId = initialContactId?.takeIf { id -> contacts.any { it.id == id } }
         ?: config.defaultContact?.id
     val initialIndex = contacts.indexOfFirst { it.id == initialId }.coerceAtLeast(0)
-    val pagerState = rememberPagerState(initialPage = initialIndex) { contacts.size }
+    val count = contacts.size
+    val loop = count > 1
+    // 循环衔接：虚拟页取模映射联系人，末位再下滑回首位、首位再上滑回末位；单人保持不循环。
+    val initialPage = if (loop) {
+        val mid = Int.MAX_VALUE / 2
+        mid - (mid % count) + initialIndex
+    } else 0
+    val pagerState = rememberPagerState(initialPage = initialPage) { if (loop) Int.MAX_VALUE else 1 }
     val settled = !pagerState.isScrollInProgress && pagerState.currentPage == pagerState.settledPage
+    val contactAt: (Int) -> FamilyContact = { page -> contacts[if (loop) page % count else 0] }
 
-    LaunchedEffect(pagerState) {
+    LaunchedEffect(pagerState, contacts) {
         snapshotFlow { pagerState.settledPage }.collect { page ->
-            contacts.getOrNull(page)?.let { onSettled(it.id) }
+            onSettled(contactAt(page).id)
         }
     }
     // 家属调整顺序后按 contactId 恢复当前目标，不依赖旧 index
     LaunchedEffect(config.contacts) {
-        val currentId = contacts.getOrNull(pagerState.settledPage)?.id ?: return@LaunchedEffect
+        val currentId = contactAt(pagerState.settledPage).id
         val index = contacts.indexOfFirst { it.id == currentId }
-        if (index >= 0 && index != pagerState.currentPage) pagerState.scrollToPage(index)
+        if (index < 0) return@LaunchedEffect
+        val cur = pagerState.currentPage
+        val target = if (loop) cur - (cur % count) + index else index
+        if (target != cur) pagerState.scrollToPage(target)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         VerticalPager(
             state = pagerState,
-            key = { contacts[it].id },
             modifier = Modifier.fillMaxSize(),
         ) { page ->
+            val contact = contactAt(page)
             ContactPage(
-                contact = contacts[page],
-                photoFile = photoFile(contacts[page].id),
+                contact = contact,
+                photoFile = photoFile(contact.id),
                 configVersion = config.configVersion,
                 dialMode = config.settings.dialMode,
                 dialEnabled = settled,
