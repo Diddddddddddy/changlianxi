@@ -92,8 +92,8 @@ export GRADLE_USER_HOME='D:\Android\gradle-home'
 | 尚未验证 | Compose UI 自动化（androidTest） | 暂以 uiautomator 脚本替代，未编写 instrumented 测试 |
 | 尚未验证 | 微信真实视频（P1） | 未启动，需单独确认+真机（SPEC §14.1） |
 | 已知限制 | 未设号码=纯本地模拟 | 设计如此，全程「模拟演示／非真实通话」诚实标注；设号码后才真实拨号 |
-| 已知限制 | 模拟器手势阈值 | headless 软件渲染需 300ms 高速度滑动；真机阈值待复核 |
-| 已知限制 | headless 系统电话栈偶发 ANR | 模拟器拨 unreachable 号码时系统 telecom 进程 ANR（「Application Not Responding: system」），非 App 缺陷；真机待复核 |
+| 已知限制 | 模拟器手势阈值 | 验证脚本统一 300ms 高速度滑动 + ≥1.6s 停稳等待；真机阈值待复核 |
+| 已调优 | headless SystemUI ANR／滑动黑帧 | 根因＝AVD 2GB 内存压力（stall SystemUI／telecom，「System UI isn't responding」遮挡输入）＋swiftshader 软件 GPU 合成黑帧；系统进程问题、非 App 缺陷。改 `-memory 4096`＋`-gpu host` 后消除，投屏人工验证滑动／点按正常 |
 | 已知限制 | `minSdk=26` 暂定 | 待目标真机确认 |
 | 已知限制 | TTS 依赖系统中文语音包 | 缺失时静默降级，界面文字仍在 |
 | 已知限制 | 演示素材全虚构 | 公开站点与日志不含真实家属照片/录音/手机号 |
@@ -102,4 +102,19 @@ export GRADLE_USER_HOME='D:\Android\gradle-home'
 
 `tools/emu.py`（uiautomator 辅助）、`tools/seed.py`（run-as 播种 3 位演示联系人，PIN 2468；`--phone 5556` 可给第一位联系人预设虚构号码做真实拨号交棒验证，默认不带号码=纯演示）、`tools/verify_family.py`、`tools/verify_record.py`、`tools/verify_pager.py`、`tools/verify_audio.py`、`tools/verify_call.py`。运行：`cd tools && python verify_family.py`（需 MSYS_NO_PATHCONV=1、PYTHONIOENCODING=utf-8）。
 
-> 模拟器输入注意：本 headless 软件渲染 AVD 上 `input swipe` 慢拖（≥800ms）常被分页器判为未达阈值而不翻页；验证脚本统一用 300ms 高速度滑动 + ≥1.6s 停稳等待，可靠触发单页翻页。
+> 模拟器输入注意：本 headless AVD（host GPU）上 `input swipe` 慢拖（≥800ms）常被分页器判为未达阈值而不翻页；验证脚本统一用 300ms 高速度滑动 + ≥1.6s 停稳等待，可靠触发单页翻页。
+
+### 交互式投屏验证（scrcpy，不进 APK）
+
+除 uiautomator 脚本外，另用 **scrcpy 5.0.1 原生客户端**把 headless AVD 投屏到桌面，做「像手机一样」的人工交互验证：**拖拽＝滑动换人、单击＝点照片呼叫、右键＝返回、中键＝HOME**。
+
+```bash
+# headless AVD：4GB 内存 + host 硬件 GPU（消除 SystemUI ANR 与黑帧），冷启动
+emulator -avd changlianxi_test -no-window -no-audio -gpu host -memory 4096 -no-snapshot-load
+# 投屏（复用现有 adb；--stay-awake 防休眠黑屏）
+ADB=<sdk>/platform-tools/adb.exe scrcpy -s emulator-5554 --no-audio --stay-awake
+```
+
+- **选型**：ws-scrcpy 内置 scrcpy-server 1.19 仅支持 ≤Android 12，无法投屏 API 36，故弃用；scrcpy 5.0.1 官方支持 Android 15/16。
+- **调优根因**：2GB AVD 预装 Google 应用致内存压力 stall SystemUI（ANR 弹窗遮挡全部输入）；swiftshader 软件 GPU 合成黑帧。4GB＋host GPU 后两者消除，滑动换人／点照片呼叫／返回均人工实测通过。
+- 投屏仅作者本地验证用，**不纳入仓库与 APK**。

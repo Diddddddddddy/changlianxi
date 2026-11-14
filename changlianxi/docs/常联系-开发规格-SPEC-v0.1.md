@@ -906,4 +906,6 @@ config_commit: version=3, outcome=SUCCESS
 - JVM 单测 74/74（含 `RealCallPlannerTest` 8 项、`CallStateMachineTest` Handoff 4 项、号码配置往返与旧配置兼容）。
 - `lintDebug` 0 错误；`assembleDebug` 产出 APK；合并清单 `RECORD_AUDIO` + `CALL_PHONE` + `telephony required=false`。
 - 模拟器（emulator-5554）交棒验证：播种 `Phone("5556")` + 授权后点照片 → logcat `act=android.intent.action.CALL dat=tel:xxxx`、系统 `UserCallActivity` 接管、telecom 生成去电（MO）；交棒页与「返回」回首页截图 `changlianxi/screenshots/t7-realcall-*.png`；App 无崩溃。
-- **未验证**：真机拨通（需真机 + 真 SIM，并入红米真机验证）；headless 模拟器系统 telecom 进程拨 unreachable 号码时偶发 ANR（系统进程，非 App 缺陷）。
+- **未验证**：真机拨通（需真机 + 真 SIM，并入红米真机验证）。
+- **已调优（系统进程问题，非 App 缺陷）**：headless 模拟器曾偶发「System UI isn't responding」ANR 与滑动黑帧。根因＝AVD 仅 2GB 内存（预装 Google 应用造成内存压力、stall SystemUI／telecom）＋ swiftshader 软件 GPU 合成黑帧；改 `-memory 4096`（`hw.ramSize=4G`）＋ `-gpu host` 后消除，人工投屏验证滑动／点按正常。
+- **交互式投屏验证**：scrcpy 5.0.1 原生镜像 headless AVD（`--stay-awake`），鼠标拖拽＝滑动换人、单击＝点照片呼叫、右键＝返回；与 uiautomator 脚本互补。ws-scrcpy 因内置 scrcpy-server 1.19 仅支持 ≤Android 12 而弃用。
