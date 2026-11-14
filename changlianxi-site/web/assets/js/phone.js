@@ -52,6 +52,10 @@ export class PhoneDemo {
   get contacts() { return this.config.contacts; }
   get currentIndex() { return Math.max(0, this.contacts.findIndex((c) => c.id === this.currentId)); }
   get current() { return this.contacts[this.currentIndex]; }
+  // 循环衔接：首尾各放一张克隆页，滑过边界后无动画吸附回真实页，实现首末互wrap。
+  get loop() { return this.contacts.length > 1; }
+  get offset() { return this.loop ? 1 : 0; }
+  get trackCount() { return this.contacts.length + (this.loop ? 2 : 0); }
 
   updateConfig(config) {
     const keepId = this.currentId;
@@ -67,11 +71,16 @@ export class PhoneDemo {
     clearTimeout(this.settleTimer);
     this.track.classList.add('dragging');
     this.track.innerHTML = '';
-    for (const c of this.contacts) {
+    const n = this.contacts.length;
+    const list = this.loop ? [this.contacts[n - 1], ...this.contacts, this.contacts[0]] : this.contacts;
+    for (let i = 0; i < list.length; i++) {
+      const c = list[i];
+      const isClone = this.loop && (i === 0 || i === list.length - 1);
       const page = document.createElement('section');
       page.className = 'page' + (this.config.dialMode === 'tap' ? ' tappable' : '');
       page.dataset.id = c.id;
-      page.setAttribute('role', this.config.dialMode === 'tap' ? 'button' : 'img');
+      if (isClone) page.setAttribute('aria-hidden', 'true');
+      else page.setAttribute('role', this.config.dialMode === 'tap' ? 'button' : 'img');
       page.setAttribute('aria-label', this.config.dialMode === 'tap' ? `给${contactDisplay(c)}打视频` : `${contactDisplay(c)}的照片`);
       page.tabIndex = -1;
       page.innerHTML = `
@@ -82,6 +91,7 @@ export class PhoneDemo {
         </div>`;
       this.track.appendChild(page);
     }
+    this.pos = this.currentIndex + this.offset;
     this.bigCall.hidden = this.config.dialMode !== 'button';
     this.bigCall.textContent = `给${contactDisplay(this.current)}打视频`;
     this.applyTransform(false);
@@ -90,23 +100,34 @@ export class PhoneDemo {
 
   applyTransform(animate = true, extraOffset = 0) {
     if (!animate) this.track.classList.add('dragging');
-    this.track.style.transform = `translateY(calc(${-this.currentIndex * 100}% + ${extraOffset}px))`;
+    this.track.style.transform = `translateY(calc(${-this.pos * 100}% + ${extraOffset}px))`;
     if (!animate) requestAnimationFrame(() => this.track.classList.remove('dragging'));
   }
 
-  goTo(index) {
-    const clamped = Math.max(0, Math.min(this.contacts.length - 1, index));
-    if (clamped === this.currentIndex) { this.applyTransform(); return; }
+  // 目标为轨道位置（含首尾克隆页）；落到克隆页后在 onSettled 无动画吸附回真实页。
+  goToPos(target) {
+    const pos = Math.max(0, Math.min(this.trackCount - 1, target));
+    if (pos === this.pos) { this.applyTransform(); return; }
     this.stopAudio();
     clearTimeout(this.settleTimer);
-    this.currentId = this.contacts[clamped].id;
+    this.pos = pos;
+    const n = this.contacts.length;
+    const idx = this.loop ? (pos === 0 ? n - 1 : pos === n + 1 ? 0 : pos - 1) : pos;
+    this.currentId = this.contacts[idx].id;
     this.bigCall.textContent = `给${contactDisplay(this.current)}打视频`;
     this.applyTransform();
     // transitionend → onSettled；无动画时（reduced motion）手动触发
     if (getComputedStyle(this.track).transitionDuration === '0s') this.onSettled();
   }
 
+  step(dir) { this.goToPos(this.pos + dir); }
+
   onSettled() {
+    // 首尾克隆页吸附回真实页（无动画），保证继续滑动方向正确
+    if (this.loop && (this.pos === 0 || this.pos === this.trackCount - 1)) {
+      this.pos = this.pos === 0 ? this.contacts.length : 1;
+      this.applyTransform(false);
+    }
     if (this.state !== 'idle') return;
     this.bigCall.textContent = `给${contactDisplay(this.current)}打视频`;
     if (this.currentId === this.lastSettledId) return;
@@ -118,7 +139,7 @@ export class PhoneDemo {
   // 抖音式手感：动画进行中可随时抓住（从当前视觉位置继续，不跳变）
   readVisualY() {
     const t = getComputedStyle(this.track).transform;
-    if (!t || t === 'none') return -this.currentIndex * this.viewport.clientHeight;
+    if (!t || t === 'none') return -this.pos * this.viewport.clientHeight;
     return new DOMMatrixReadOnly(t).m42;
   }
 
@@ -129,7 +150,7 @@ export class PhoneDemo {
 
   dragY(dy) {
     const h = this.viewport.clientHeight;
-    const minY = -(this.contacts.length - 1) * h;
+    const minY = -(this.trackCount - 1) * h;
     let y = this.drag.startVisualY + dy;
     if (y > 0) y = this.rubberBand(y, h);
     else if (y < minY) y = minY + this.rubberBand(y - minY, h);
@@ -200,13 +221,13 @@ export class PhoneDemo {
     if (this.dragged) {
       // 抖音判定：快扫（>350px/s）或拖过 1/4 页至少翻一页；否则按位置 + 150ms 惯性外推吸附最近页
       const h = this.viewport.clientHeight;
-      const delta = visualY + this.currentIndex * h;
+      const delta = visualY + this.pos * h;
       let target = Math.round(-(visualY + velocity * 150) / h);
       if (Math.abs(velocity) > 0.35 || Math.abs(delta) > h * 0.25) {
         const dir = (Math.abs(velocity) > 0.35 ? velocity : delta) < 0 ? 1 : -1;
-        target = dir > 0 ? Math.max(target, this.currentIndex + 1) : Math.min(target, this.currentIndex - 1);
+        target = dir > 0 ? Math.max(target, this.pos + 1) : Math.min(target, this.pos - 1);
       }
-      this.goTo(target);
+      this.goToPos(target);
       // 拖动抬起的那次点击不应触发拨打
       setTimeout(() => { this.dragged = false; }, 80);
     } else {
@@ -230,7 +251,7 @@ export class PhoneDemo {
     if (now - (this.lastWheel || 0) < 480) return;
     if (Math.abs(e.deltaY) < 12) return;
     this.lastWheel = now;
-    this.goTo(this.currentIndex + (e.deltaY > 0 ? 1 : -1));
+    this.step(e.deltaY > 0 ? 1 : -1);
   }
 
   onKey(e) {
@@ -238,7 +259,7 @@ export class PhoneDemo {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       this.enableAudio();
-      this.goTo(this.currentIndex + (e.key === 'ArrowDown' ? 1 : -1));
+      this.step(e.key === 'ArrowDown' ? 1 : -1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       this.enableAudio();
