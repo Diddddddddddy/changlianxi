@@ -193,12 +193,13 @@ data class FamilyContact(
     val voicePath: String,           // App 私有目录的文件标识／相对路径
     val order: Int,
     val isDefault: Boolean,
-    val callTarget: CallTarget       // P0 只能是 Demo，P1 才绑定微信
+    val callTarget: CallTarget       // Demo=模拟；Phone=真实蜂窝拨号（P1 回退，已实现）；WeChatVideo=P1 微信（未实现）
 )
 
 sealed interface CallTarget {
     data object Demo : CallTarget
     data class WeChatVideo(val localBindingId: String) : CallTarget
+    data class Phone(val number: String) : CallTarget   // 家属手动录入，仅存本机私有配置
 }
 
 enum class DialMode {
@@ -206,12 +207,18 @@ enum class DialMode {
     LARGE_BUTTON
 }
 
+enum class PhoneDialMethod {
+    DIRECT_CALL,                     // 一键直拨 ACTION_CALL，需 CALL_PHONE（默认）
+    SYSTEM_DIALER                    // 系统拨号盘 ACTION_DIAL，零权限
+}
+
 data class AppSettings(
     val schemaVersion: Int = 1,
     val dialMode: DialMode = DialMode.TAP_PHOTO,
     val autoPlayVoice: Boolean = true,
     val defaultContactId: String? = null,
-    val configVersion: Long = 1
+    val configVersion: Long = 1,
+    val phoneDialMethod: PhoneDialMethod = PhoneDialMethod.DIRECT_CALL
 )
 ```
 
@@ -251,7 +258,7 @@ data class AppSettings(
 }
 ```
 
-这里存的是私有路径，不是上传到互联网的 URL。**家人相片与语音不得提交 Git 仓库**；自动化测试使用有授权的假数据或自己制作的占位资源。
+这里存的是私有路径，不是上传到互联网的 URL。**家人相片与语音不得提交 Git 仓库**；自动化测试使用有授权的假数据或自己制作的占位资源。**手机号（`CallTarget.Phone.number`）同样仅存本机私有配置、绑定 `contactId`，绝不进日志、Git 仓库或公开演示**；公开演示与种子脚本只用虚构号码（如模拟器互拨 `5556`）。
 
 ### 3.4 家属 PIN
 
@@ -406,6 +413,7 @@ sealed interface CallStartResult {
 ```
 
 - `DemoCallGateway`：完全本地，不访问通信系统。模拟结果由开发／演示控件触发，不从 UI 代码直接伪造成功。
+- `RealCallGateway`（P1 回退，已实现）：真实蜂窝拨号。决策交给纯逻辑 `RealCallPlanner`（号码可拨性／拨号方式／权限），Android 侧只发 `ACTION_CALL`/`ACTION_DIAL` Intent 并返回 `HandoffStarted`；`SecurityException` 时静默退回零权限 `ACTION_DIAL`。交棒后 App 不可观测接通／挂断，绝不假装已接通。
 - `WeChatCallGateway`：P1 才实现，默认禁用。接到用户明确请求后，负责判断权限／微信状态／联系人匹配／页面验证；任何无法验证都返回失败或不可确认。
 - `RTC` 方案：P4 才评估，不提前创建空实现。
 
@@ -724,7 +732,7 @@ Qoder 比赛要求可打开的站点。Qoder Sites 可以创建、预览、发�
 ### 11.5 实际验证与边界
 
 - AC-25：Android 构建任务产出 APK，并在测试设备上完成核心任务；未执行的检查需单独标为未验证。
-- AC-26：P0 Manifest 没有无关危险权限、后台电话操作或隐式联网依赖。
+- AC-26：Manifest 没有**无关**危险权限、后台电话操作或隐式联网依赖。P0 仅 `RECORD_AUDIO`；P1 真实蜂窝拨号**有意**新增 `CALL_PHONE`（仅老人明确点击后拨家属预设号码；家属可改零权限 `ACTION_DIAL`，未授权时网关静默退回），并把电话硬件声明为可选（`telephony required=false`，无 SIM 设备仍可安装退回演示）；仍无网络／通讯录／相机／无障碍／位置。
 - AC-27：日志与示例数据不包含未经同意的真实照片、录音、手机号和微信账号。
 - AC-28：如果 P1 未通过，P0 仍可独立安装并完成全部模拟交互。
 - AC-29：如果 P1 微信界面定位到同名／不确定联系人，**不得拨号**。
@@ -865,3 +873,37 @@ config_commit: version=3, outcome=SUCCESS
 - [Qoder Sites 使用和发布](https://docs.qoder.com/zh/qoder/sites)
 
 **最终执行要求**：先落地能给真实老人试用的最小 App，再用用户测试决定是否增加功能。任何新增按钮、权限、框架、接口或云服务，都必须能对应 PRD 中一个已确认的必要需求。
+
+---
+
+## 16. 实现增补：真实蜂窝拨号（P1 回退，2026-11-14）
+
+> 本节记录 v0.1 之后**已实现**的真实蜂窝拨号回退方案，是对第 3／5／11 节契约的增补与修订；未改动部分仍以原文为准。微信真实视频（P1）仍未启动。
+
+### 16.1 动机与定位
+
+老人不会在智能机上找联系人拨号（老年机有预设按键、智能机没有）。最基础的回退：**上下滑动选家人、点照片拨真实蜂窝电话**；呼出后由家人微信视频打回来，同样达成「见一面」，且比微信无障碍方案更简洁、更可控。因此把真实蜂窝拨号作为 P1 的**默认回退**先落地，微信视频仍单独确认。
+
+### 16.2 三个已确认的设计决定
+
+1. **拨号方式是全局设置**（`AppSettings.phoneDialMethod`），不按联系人区分：`DIRECT_CALL`（一键直拨 `ACTION_CALL`，需 `CALL_PHONE`，默认）／`SYSTEM_DIALER`（系统拨号盘 `ACTION_DIAL`，零权限、需再按拨打键）。
+2. **号码按联系人录入**（`CallTarget.Phone.number`），家属手动填写；**留空 = 纯演示**（`CallTarget.Demo`），不拨真实电话。
+3. **`DIRECT_CALL` 缺 `CALL_PHONE` 授权时静默退回 `SYSTEM_DIALER`**（`ACTION_DIAL`），不报错、不阻断老人；权限在家属页选定「一键直拨」时提前申请（PIN 之后），老人日常不会遇到中途权限弹窗。
+
+### 16.3 失败关闭与诚实交棒
+
+- `RealCallPlanner`（纯逻辑、JVM 可测）：号码字符／位数非法（数字 3—15 位之外）→ `Reject(MISSING_BINDING)`，不拨；`Demo` → 模拟；`WeChatVideo` → `Reject(WECHAT_UNAVAILABLE)`（未实现）。号码归一化保留 leading `+`、去除分隔符。
+- `RealCallGateway` 发 Intent 后返回 `HandoffStarted`；状态机进入新增 `CallPhase.Handoff`。**App 不可观测真实接通／挂断**，故交棒页 `RealCallScreen` 只说「正在拨打／已交给系统电话，接通后由系统显示」+「返回」，**无「模拟」徽标、无假接听／挂断控件**，绝不声称已接通。
+- 系统电话界面为透明覆盖层时 App 仅 pause 不 stop，交棒页保留；老人点「返回」→ `endCall` 回老人首页。App 真正退后台（onStop）→ 复位回老人首页。
+- 每次真实拨号仍由老人明确点击触发；不后台自动拨号／自动接听。
+
+### 16.4 隐私
+
+号码仅存本机私有配置（与照片／录音同一原子存储）、绑定 `contactId`；**不进日志、Git 仓库、公开演示**。实测 Android 系统日志对 `tel:` 号码自动脱敏（`dat=tel:xxxx`）。网页演示保持纯模拟、虚构号码。
+
+### 16.5 验证（诚实记录）
+
+- JVM 单测 74/74（含 `RealCallPlannerTest` 8 项、`CallStateMachineTest` Handoff 4 项、号码配置往返与旧配置兼容）。
+- `lintDebug` 0 错误；`assembleDebug` 产出 APK；合并清单 `RECORD_AUDIO` + `CALL_PHONE` + `telephony required=false`。
+- 模拟器（emulator-5554）交棒验证：播种 `Phone("5556")` + 授权后点照片 → logcat `act=android.intent.action.CALL dat=tel:xxxx`、系统 `UserCallActivity` 接管、telecom 生成去电（MO）；交棒页与「返回」回首页截图 `changlianxi/screenshots/t7-realcall-*.png`；App 无崩溃。
+- **未验证**：真机拨通（需真机 + 真 SIM，并入红米真机验证）；headless 模拟器系统 telecom 进程拨 unreachable 号码时偶发 ANR（系统进程，非 App 缺陷）。

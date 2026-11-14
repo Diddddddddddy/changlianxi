@@ -55,15 +55,22 @@
   </div>
 
   <div class="log-entry">
-    <p class="log-date">进行中</p>
-    <h3>Android 真机版（并行轨）</h3>
-    <p>Kotlin + Jetpack Compose 工程搭建中。计划：本地家属配置 → 老人主页 VerticalPager → 语音与异常 → 模拟通话状态机 → 真机试用。目标设备：Redmi Turbo（具体型号待 adb 读取）。</p>
-    <p><strong>验证状态：</strong><span class="tag">未验证</span> APK 构建与真机流程尚未完成，完成后在此贴出实际结果。</p>
+    <p class="log-date">2026-11-12</p>
+    <h3>Android 真机版 T1–T5 完成（模拟器验证）</h3>
+    <p>Kotlin + Jetpack Compose 工程完成本地核心：家属配置（PIN/照片/本人录音/排序/默认）、老人主页 VerticalPager 一屏一人、停稳播本人录音与音频焦点、DemoCallGateway 呼叫状态机与模拟来电/失败回退。单元测试 55/55、lint 0 错误、assembleDebug 产出 APK；T2–T5 模拟器全流程脚本实测通过。</p>
+    <p><strong>验证状态：</strong><span class="tag">模拟器验证</span> 构建/单测/全流程脚本通过；<span class="tag">待验证</span> 红米真机试用与老人用户测试（待硬件与知情同意）。</p>
+  </div>
+
+  <div class="log-entry">
+    <p class="log-date">2026-11-14</p>
+    <h3>真实蜂窝拨号（P1 回退）：点照片打真实电话</h3>
+    <p>落地最基础的回退方案：老人上下滑动选家人、点照片拨<strong>真实蜂窝电话</strong>，呼出后由家人微信视频打回来。家属按联系人录入手机号（留空=纯演示），全局拨号方式可选「一键直拨」（需电话权限）或「系统拨号盘」（零权限）；未授权时静默退回系统拨号盘，不阻断老人。号码仅存本机、不进日志/仓库/公开演示。呼叫交棒系统电话后进入诚实「交棒页」（正在拨打／已交给系统电话），<strong>不假装已接通</strong>；网页演示保持纯模拟。单元测试增至 74/74。</p>
+    <p><strong>验证状态：</strong><span class="tag">模拟器交棒验证</span> 点照片发出 ACTION_CALL、系统电话界面接管、生成去电，交棒页与返回路径截图为证，App 无崩溃；<span class="tag">待验证</span> 真机拨通（需真机+真 SIM）。微信真实视频仍未开始。</p>
   </div>
 
   <h2>已知限制</h2>
   <ul>
-    <li>演示站无真实通话能力，微信接入未开始。</li>
+    <li>网页演示站无真实通话能力（保持纯模拟）；Android 端已支持真实蜂窝拨号（真机拨通待验证），微信视频接入未开始。</li>
     <li>家属演示配置仅当前浏览器生效；不提供素材上传。</li>
     <li>浏览器自动播放策略要求首次点击后才能出声（演示已做引导）。</li>
     <li>老人用户测试尚未进行，交互假设（一屏一人＋滑动是否最优）待真实用户验证。</li>

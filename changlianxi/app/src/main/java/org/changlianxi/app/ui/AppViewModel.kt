@@ -20,7 +20,8 @@ import org.changlianxi.app.call.CallGateway
 import org.changlianxi.app.call.CallPhase
 import org.changlianxi.app.call.CallStartResult
 import org.changlianxi.app.call.CallStateMachine
-import org.changlianxi.app.call.DemoCallGateway
+import org.changlianxi.app.call.RealCallGateway
+import org.changlianxi.app.call.RealCallPlanner
 import org.changlianxi.app.call.StatusPhrases
 import org.changlianxi.app.data.ConfigStore
 import org.changlianxi.app.data.ContactRepository
@@ -28,7 +29,9 @@ import org.changlianxi.app.data.ImageImporter
 import org.changlianxi.app.data.MediaFiles
 import org.changlianxi.app.data.PinStore
 import org.changlianxi.app.model.AppConfig
+import org.changlianxi.app.model.CallTarget
 import org.changlianxi.app.model.DialMode
+import org.changlianxi.app.model.PhoneDialMethod
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -47,6 +50,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val contactId: String,
         val isNew: Boolean,
         val name: String = "",
+        val phone: String = "",
         val hasPhoto: Boolean = false,
         val hasVoice: Boolean = false,
         val makeDefault: Boolean = false,
@@ -64,7 +68,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val player = VoicePlayer(app)
     private val statusVoice = StatusVoice(app)
     private val recorder = VoiceRecorder(app)
-    private val gateway: CallGateway = DemoCallGateway()
+    private val gateway: CallGateway = RealCallGateway(app) { _config.value?.settings }
     private val machine = CallStateMachine()
     private var recordTicker: Job? = null
     private var settleVoiceJob: Job? = null
@@ -159,6 +163,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun moveContact(id: String, direction: Int) = mutate { repo.moveContact(id, direction) }
     fun setDefault(id: String) = mutate { repo.setDefault(id) }
     fun setDialMode(mode: DialMode) = mutate { repo.setDialMode(mode) }
+    fun setPhoneDialMethod(method: PhoneDialMethod) = mutate { repo.setPhoneDialMethod(method) }
     fun setAutoPlayVoice(enabled: Boolean) = mutate { repo.setAutoPlayVoice(enabled) }
 
     fun finishFamily() {
@@ -188,6 +193,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     machine.fail(requestId, result.error)
                     failAndShow(result.error)
                 }
+                is CallStartResult.HandoffStarted -> { machine.handoff(requestId); syncCall() }
                 else -> { machine.demoStarted(requestId); syncCall() }
             }
         }
@@ -252,6 +258,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             is CallPhase.DemoConnected -> hangup()
             is CallPhase.IncomingDemo -> incomingDecline()
             is CallPhase.Failed -> endCall()
+            is CallPhase.Handoff -> endCall()
             else -> cancelCall()
         }
     }
@@ -279,6 +286,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             contactId = id,
             isNew = isNew,
             name = existing?.displayName ?: "",
+            phone = (existing?.callTarget as? CallTarget.Phone)?.number ?: "",
             hasPhoto = media.photoReady(id),
             hasVoice = media.voiceReady(id),
             makeDefault = existing != null && existing.id == _config.value?.settings?.defaultContactId,
@@ -287,6 +295,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateName(name: String) { _editor.value = _editor.value?.copy(name = name, error = null) }
+    fun updatePhone(phone: String) { _editor.value = _editor.value?.copy(phone = phone, error = null) }
     fun updateMakeDefault(value: Boolean) { _editor.value = _editor.value?.copy(makeDefault = value) }
 
     fun importPhoto(uri: Uri) {
@@ -373,12 +382,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (state.name.isBlank()) { _editor.value = state.copy(error = "请填写称呼"); return }
         if (!state.hasPhoto) { _editor.value = state.copy(error = "请选择一张照片"); return }
         if (!state.hasVoice) { _editor.value = state.copy(error = "请录制或导入一段本人声音"); return }
+        val phone = state.phone.trim()
+        if (phone.isNotEmpty() && !RealCallPlanner.isDialable(phone)) {
+            _editor.value = state.copy(error = "电话号码看起来不对，请检查"); return
+        }
+        val callTarget = if (phone.isEmpty()) CallTarget.Demo else CallTarget.Phone(phone)
         if (state.recording) stopRecording()
         player.stop()
         _editor.value = _editor.value?.copy(saving = true, error = null)
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { repo.commitContact(state.contactId, state.name, state.makeDefault) }
+                withContext(Dispatchers.IO) { repo.commitContact(state.contactId, state.name, state.makeDefault, callTarget) }
             }.onSuccess {
                 _config.value = it
                 _editor.value = null

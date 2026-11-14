@@ -6,6 +6,7 @@ import org.changlianxi.app.model.AppSettings
 import org.changlianxi.app.model.CallTarget
 import org.changlianxi.app.model.DialMode
 import org.changlianxi.app.model.FamilyContact
+import org.changlianxi.app.model.PhoneDialMethod
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -94,5 +95,37 @@ class ConfigStoreTest {
         val c = contact("a", 0).copy(callTarget = CallTarget.WeChatVideo("binding-1"))
         store.save(AppConfig(contacts = listOf(c)))
         assertEquals(CallTarget.WeChatVideo("binding-1"), store.load()!!.contacts[0].callTarget)
+    }
+
+    @Test fun `phone target survives roundtrip`() {
+        val store = ConfigStore(tmp.root)
+        val c = contact("a", 0).copy(callTarget = CallTarget.Phone("13800138000"))
+        store.save(AppConfig(contacts = listOf(c)))
+        assertEquals(CallTarget.Phone("13800138000"), store.load()!!.contacts[0].callTarget)
+    }
+
+    @Test fun `phone dial method defaults to direct call`() {
+        val store = ConfigStore(tmp.root)
+        store.save(AppConfig(contacts = listOf(contact("a", 0))))
+        assertEquals(PhoneDialMethod.DIRECT_CALL, store.load()!!.settings.phoneDialMethod)
+    }
+
+    @Test fun `phone dial method persists`() {
+        val store = ConfigStore(tmp.root)
+        store.save(AppConfig(
+            settings = AppSettings(phoneDialMethod = PhoneDialMethod.SYSTEM_DIALER),
+            contacts = listOf(contact("a", 0)),
+        ))
+        assertEquals(PhoneDialMethod.SYSTEM_DIALER, store.load()!!.settings.phoneDialMethod)
+    }
+
+    @Test fun `legacy config without phone fields loads with defaults`() {
+        File(tmp.root, "config.json").writeText(
+            """{"schemaVersion":1,"configVersion":3,"settings":{"dialMode":"TAP_PHOTO","autoPlayVoice":true,"defaultContactId":"a"},"contacts":[{"id":"a","displayName":"家人a","photoPath":"media/photo/a.jpg","voicePath":"media/voice/a.m4a","order":0,"callTarget":{"type":"DEMO"}}]}"""
+        )
+        val loaded = ConfigStore(tmp.root).load()!!
+        assertEquals(PhoneDialMethod.DIRECT_CALL, loaded.settings.phoneDialMethod)
+        assertEquals(CallTarget.Demo, loaded.contacts[0].callTarget)
+        assertEquals(3L, loaded.configVersion)
     }
 }

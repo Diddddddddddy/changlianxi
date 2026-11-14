@@ -1,7 +1,9 @@
 package org.changlianxi.app.data
 
 import java.io.ByteArrayInputStream
+import org.changlianxi.app.model.CallTarget
 import org.changlianxi.app.model.DialMode
+import org.changlianxi.app.model.PhoneDialMethod
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -153,5 +155,19 @@ class ContactRepositoryTest {
         assertEquals(2, config.contacts.size)
         assertEquals("b", config.defaultContact!!.id)
         assertEquals("儿子", config.defaultContact!!.displayName)
+    }
+
+    @Test fun `phone number target persists and clears to demo`() {
+        stage("a"); add("a", "女儿")
+        repo.commitContact("a", "女儿", false, CallTarget.Phone("13800138000"))
+        assertEquals(CallTarget.Phone("13800138000"), repo.load()!!.contact("a")!!.callTarget)
+        repo.commitContact("a", "女儿", false, CallTarget.Demo)
+        assertEquals(CallTarget.Demo, repo.load()!!.contact("a")!!.callTarget)
+    }
+
+    @Test fun `phone dial method persists`() {
+        stage("a"); add("a")
+        repo.setPhoneDialMethod(PhoneDialMethod.SYSTEM_DIALER)
+        assertEquals(PhoneDialMethod.SYSTEM_DIALER, repo.load()!!.settings.phoneDialMethod)
     }
 }

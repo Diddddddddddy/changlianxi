@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 真实蜂窝拨号（P1）：仅用于老人明确点击后拨打家属预设号码；家属可改用零权限的系统拨号盘。 -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- 电话硬件可选：无 SIM/无电话功能的设备仍可安装，退回演示模式。 -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <application
         android:label="常联系"
         android:icon="@mipmap/ic_launcher"

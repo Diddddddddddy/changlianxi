@@ -5,6 +5,7 @@ import org.changlianxi.app.model.AppConfig
 import org.changlianxi.app.model.CallTarget
 import org.changlianxi.app.model.DialMode
 import org.changlianxi.app.model.FamilyContact
+import org.changlianxi.app.model.PhoneDialMethod
 
 /** 联系人业务规则。同步 API，调用方负责放到 IO 线程。所有变更经 ConfigStore 原子落盘。 */
 class ContactRepository(private val store: ConfigStore, private val media: MediaFiles) {
@@ -17,7 +18,12 @@ class ContactRepository(private val store: ConfigStore, private val media: Media
      * 提交联系人：staging 媒体先转正并验证，再写配置。
      * 媒体不齐备时抛异常，旧配置不变；staging 由调用方决定保留（继续编辑）或丢弃。
      */
-    fun commitContact(id: String, displayName: String, makeDefault: Boolean): AppConfig {
+    fun commitContact(
+        id: String,
+        displayName: String,
+        makeDefault: Boolean,
+        callTarget: CallTarget? = null,
+    ): AppConfig {
         val name = displayName.trim()
         require(name.isNotEmpty()) { "请填写称呼" }
         media.commitMedia(id)
@@ -29,7 +35,7 @@ class ContactRepository(private val store: ConfigStore, private val media: Media
             photoPath = "media/photo/$id.jpg",
             voicePath = "media/voice/$id.m4a",
             order = existing?.order ?: current.contacts.size,
-            callTarget = existing?.callTarget ?: CallTarget.Demo,
+            callTarget = callTarget ?: existing?.callTarget ?: CallTarget.Demo,
         )
         val contacts = if (existing == null) current.contacts + contact
         else current.contacts.map { if (it.id == id) contact else it }
@@ -75,6 +81,11 @@ class ContactRepository(private val store: ConfigStore, private val media: Media
     fun setDialMode(mode: DialMode): AppConfig {
         val current = store.load() ?: return AppConfig()
         return store.save(current.copy(settings = current.settings.copy(dialMode = mode)))
+    }
+
+    fun setPhoneDialMethod(method: PhoneDialMethod): AppConfig {
+        val current = store.load() ?: return AppConfig()
+        return store.save(current.copy(settings = current.settings.copy(phoneDialMethod = method)))
     }
 
     fun setAutoPlayVoice(enabled: Boolean): AppConfig {

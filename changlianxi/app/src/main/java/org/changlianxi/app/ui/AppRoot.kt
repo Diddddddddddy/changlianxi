@@ -14,6 +14,7 @@ import org.changlianxi.app.model.AppConfig
 import org.changlianxi.app.ui.elder.DemoCallScreen
 import org.changlianxi.app.ui.elder.ElderHomeScreen
 import org.changlianxi.app.ui.elder.IncomingCallScreen
+import org.changlianxi.app.ui.elder.RealCallScreen
 import org.changlianxi.app.ui.family.ContactEditorScreen
 import org.changlianxi.app.ui.family.ContactListScreen
 import org.changlianxi.app.ui.family.CreatePinScreen
@@ -49,6 +50,7 @@ fun AppRoot(vm: AppViewModel) {
                     onMove = vm::moveContact,
                     onSetDefault = vm::setDefault,
                     onDialMode = vm::setDialMode,
+                    onPhoneDialMethod = vm::setPhoneDialMethod,
                     onAutoPlay = vm::setAutoPlayVoice,
                     onSimulateIncoming = vm::simulateIncoming,
                     onFinish = vm::finishFamily,
@@ -59,6 +61,7 @@ fun AppRoot(vm: AppViewModel) {
                         state = state,
                         photoFile = vm.previewPhotoFile(state.contactId),
                         onName = vm::updateName,
+                        onPhone = vm::updatePhone,
                         onMakeDefault = vm::updateMakeDefault,
                         onPhotoPicked = vm::importPhoto,
                         onVoicePicked = vm::importVoice,
@@ -92,6 +95,13 @@ fun AppRoot(vm: AppViewModel) {
                             configVersion = config?.configVersion ?: 0L,
                             onAnswer = vm::incomingAnswer,
                             onDecline = vm::incomingDecline,
+                        )
+                    } else if (phase is CallPhase.Handoff) {
+                        RealCallScreen(
+                            name = name,
+                            photoFile = vm.previewPhotoFile(cid),
+                            configVersion = config?.configVersion ?: 0L,
+                            onBack = vm::backFromCall,
                         )
                     } else {
                         DemoCallScreen(

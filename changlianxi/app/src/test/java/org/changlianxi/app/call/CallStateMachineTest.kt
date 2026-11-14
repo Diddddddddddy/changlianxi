@@ -107,4 +107,34 @@ class CallStateMachineTest {
         m.demoStarted("r1"); m.demoAnswer("r1"); m.hangup("r1")
         assertFalse(m.isActive)
     }
+
+    @Test fun `real call handoff from preparing`() {
+        m.request("a", "r1")
+        assertTrue(m.handoff("r1"))
+        assertEquals(CallPhase.Handoff("a"), m.phase)
+        assertEquals("a", m.contactId)
+        assertFalse(m.demoStarted("r1"))  // 交棒后不得再假装演示接通
+        assertFalse(m.demoAnswer("r1"))
+        m.reset()
+        assertEquals(CallPhase.Idle, m.phase)
+        assertNull(m.requestId)
+    }
+
+    @Test fun `handoff rejects stale requestId`() {
+        m.request("a", "r1")
+        assertFalse(m.handoff("old"))
+        assertEquals(CallPhase.Preparing("a"), m.phase)
+    }
+
+    @Test fun `handoff only from preparing`() {
+        m.request("a", "r1"); m.demoStarted("r1")
+        assertFalse(m.handoff("r1"))  // DemoRinging 不能交棒
+        assertEquals(CallPhase.DemoRinging("a"), m.phase)
+    }
+
+    @Test fun `new request blocked while handed off`() {
+        m.request("a", "r1"); m.handoff("r1")
+        assertFalse(m.request("b", "r2"))  // 真实呼叫进行中锁定，不接受新拨打
+        assertEquals("a", m.contactId)
+    }
 }

@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import sys
 import uuid
 from pathlib import Path
 
@@ -24,14 +25,22 @@ def main():
     pin_record = {"salt": salt.hex(), "hash": digest.hex(), "iterations": 120_000,
                   "failedAttempts": 0, "lockUntil": 0}
 
+    # 可选 --phone NUMBER：仅给第一位联系人预设虚构号码（模拟器互拨验证用，如 5556）。
+    # 默认不带号码 = 纯演示，既有验证脚本行为不变。号码只写入本机私有配置，绝不进仓库/日志。
+    phone = None
+    if "--phone" in sys.argv:
+        phone = sys.argv[sys.argv.index("--phone") + 1].strip()
+
     ids = [str(uuid.uuid4()) for _ in CONTACTS]
     config = {
         "schemaVersion": 1,
         "configVersion": 1,
-        "settings": {"dialMode": "TAP_PHOTO", "autoPlayVoice": True, "defaultContactId": ids[0]},
+        "settings": {"dialMode": "TAP_PHOTO", "autoPlayVoice": True, "defaultContactId": ids[0],
+                     "phoneDialMethod": "DIRECT_CALL"},
         "contacts": [
             {"id": cid, "displayName": name, "photoPath": f"media/photo/{cid}.jpg",
-             "voicePath": f"media/voice/{cid}.m4a", "order": i, "callTarget": {"type": "DEMO"}}
+             "voicePath": f"media/voice/{cid}.m4a", "order": i,
+             "callTarget": ({"type": "PHONE", "number": phone} if phone and i == 0 else {"type": "DEMO"})}
             for i, (cid, (name, _)) in enumerate(zip(ids, CONTACTS))
         ],
     }
@@ -49,7 +58,7 @@ def main():
     (tmp / "_config.json").unlink()
     (tmp / "_pin.json").unlink()
 
-    print("seeded contacts:", [(c["displayName"], c["id"][:8]) for c in config["contacts"]])
+    print("seeded contacts:", [(c["displayName"], c["id"][:8], c["callTarget"]["type"]) for c in config["contacts"]])
     print(shell(f"run-as {PKG} ls -la files files/media/photo files/media/voice"))
 
 

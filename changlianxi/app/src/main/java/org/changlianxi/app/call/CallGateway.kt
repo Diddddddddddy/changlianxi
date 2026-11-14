@@ -30,7 +30,11 @@ object StatusPhrases {
     const val REQUEST = "正在帮你打电话"
     const val NO_NETWORK = "手机没联网"
     const val FAILED = "电话没有打出去"
+    const val NOT_READY = "这个电话还没设置好"
 
-    fun forError(error: CallError): String =
-        if (error == CallError.NETWORK_UNAVAILABLE) NO_NETWORK else FAILED
+    fun forError(error: CallError): String = when (error) {
+        CallError.NETWORK_UNAVAILABLE -> NO_NETWORK
+        CallError.MISSING_BINDING -> NOT_READY
+        else -> FAILED
+    }
 }

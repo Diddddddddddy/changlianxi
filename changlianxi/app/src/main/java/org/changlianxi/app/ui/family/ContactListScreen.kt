@@ -1,5 +1,9 @@
 package org.changlianxi.app.ui.family
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,16 +38,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import org.changlianxi.app.model.AppConfig
+import org.changlianxi.app.model.CallTarget
 import org.changlianxi.app.model.DialMode
+import org.changlianxi.app.model.PhoneDialMethod
 import org.changlianxi.app.ui.FilePhoto
 
 @Composable
@@ -56,11 +65,22 @@ fun ContactListScreen(
     onMove: (String, Int) -> Unit,
     onSetDefault: (String) -> Unit,
     onDialMode: (DialMode) -> Unit,
+    onPhoneDialMethod: (PhoneDialMethod) -> Unit,
     onAutoPlay: (Boolean) -> Unit,
     onSimulateIncoming: () -> Unit,
     onFinish: () -> Unit,
 ) {
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    var callPhoneGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val callPhonePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        callPhoneGranted = granted
+        onPhoneDialMethod(PhoneDialMethod.DIRECT_CALL)
+    }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
         Text("家属设置", fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -79,6 +99,12 @@ fun ContactListScreen(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(contact.displayName, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            if (contact.callTarget is CallTarget.Phone) "真实拨号" else "演示（未设号码）",
+                            fontSize = 12.sp,
+                            color = if (contact.callTarget is CallTarget.Phone) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         if (contact.id == config.settings.defaultContactId) {
                             Text("默认打开", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                         } else {
@@ -130,6 +156,42 @@ fun ContactListScreen(
         ) {
             Text("翻页停稳后自动播放本人录音", fontSize = 16.sp, modifier = Modifier.weight(1f))
             Switch(checked = config.settings.autoPlayVoice, onCheckedChange = onAutoPlay)
+        }
+
+        Spacer(Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(16.dp))
+
+        Text("真实拨号方式", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        Text(
+            "在每位家人编辑页填手机号后，老人点照片即拨打真实电话；不填号码则仍为演示。号码仅存本机，不上传、不进公开演示。",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            RadioButton(
+                selected = config.settings.phoneDialMethod == PhoneDialMethod.DIRECT_CALL,
+                onClick = {
+                    if (callPhoneGranted) onPhoneDialMethod(PhoneDialMethod.DIRECT_CALL)
+                    else callPhonePermission.launch(Manifest.permission.CALL_PHONE)
+                },
+            )
+            Text("一键直拨（推荐，需电话权限）", fontSize = 16.sp)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            RadioButton(
+                selected = config.settings.phoneDialMethod == PhoneDialMethod.SYSTEM_DIALER,
+                onClick = { onPhoneDialMethod(PhoneDialMethod.SYSTEM_DIALER) },
+            )
+            Text("系统拨号盘（零权限，需再按拨打键）", fontSize = 16.sp)
+        }
+        if (config.settings.phoneDialMethod == PhoneDialMethod.DIRECT_CALL && !callPhoneGranted) {
+            Text(
+                "未获得电话权限，拨打时会自动改用系统拨号盘（仍可拨，需再按一次拨打键）。",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Spacer(Modifier.height(24.dp))

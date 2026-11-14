@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -50,6 +52,7 @@ fun ContactEditorScreen(
     state: AppViewModel.EditorState,
     photoFile: File?,
     onName: (String) -> Unit,
+    onPhone: (String) -> Unit,
     onMakeDefault: (Boolean) -> Unit,
     onPhotoPicked: (android.net.Uri) -> Unit,
     onVoicePicked: (android.net.Uri) -> Unit,
@@ -83,6 +86,20 @@ fun ContactEditorScreen(
             label = { Text("称呼（如：女儿）") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = state.phone,
+            onValueChange = onPhone,
+            label = { Text("手机号（选填，用于真实拨打）") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "填了号码：老人点照片拨打真实电话；留空：仅演示。号码仅存本机，不上传、不进公开演示。",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(20.dp))
 

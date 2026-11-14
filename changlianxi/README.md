@@ -14,7 +14,7 @@
 
 ## 技术栈
 
-Kotlin + Jetpack Compose（Material 3）+ VerticalPager；ViewModel/StateFlow；本地配置与私有媒体文件；`CallGateway` 接口 + `DemoCallGateway` 模拟适配器。P0 无网络权限、无通讯录权限。
+Kotlin + Jetpack Compose（Material 3）+ VerticalPager；ViewModel/StateFlow；本地配置与私有媒体文件；`CallGateway` 接缝 + `DemoCallGateway`（纯本地模拟）/ `RealCallGateway`（真实蜂窝拨号，决策由纯逻辑 `RealCallPlanner` 负责）。无网络权限、无通讯录权限；真实拨号仅用 `CALL_PHONE`（家属可改用零权限的系统拨号盘）。
 
 - `minSdk = 26`（暂定，待目标真机确认）、`compileSdk = targetSdk = 36`
 - AGP 8.12.0 / Kotlin 2.2.0 / Gradle 8.14.3 / Compose BOM 2025.06.00
@@ -64,33 +64,42 @@ export GRADLE_USER_HOME='D:\Android\gradle-home'
   - 演示分支：拨号→响铃→「模拟对方接听」→接通→挂断；「模拟无人接听」／「模拟断网失败」→失败页（正确语音+「返回」回原联系人，不声称已接通，AC-17）；家属页「模拟来电（演示）」→来电页点照片接听／红色拒接（两触控区独立，AC-12）。
   - 诚实标注：所有呼叫/来电/接通/失败页均带「模拟演示」徽标与「非真实通话」说明（AC-11）；`DemoCallGateway` 纯本地，不产生真实网络呼叫。
   - 验证：JVM 单元测试 55/55 通过（新增 `CallStateMachineTest` 12 项覆盖幂等/过期事件/各分支）；模拟器实测（`tools/verify_call.py`）——拨号接听挂断、双击单次、无人接听回退、断网回退、响铃取消、来电接听挂断、来电拒接均通过；截图 `screenshots/t5-01`…`t5-05`。
-- T6（自动化检查已完成，真机／老人试用待硬件）：lint 0 错误（11 条良性告警：依赖版本提示、有意竖屏锁定、图标单色属性）；单元测试 55/55；`assembleDebug` 产出 APK 10.7MB；合并清单仅 `RECORD_AUDIO`（AC-26 满足）。验证表见下。
-- 微信真实拨出（P1）、远程配置（P3）、自有 RTC（P4）均不在 P0，单独验证。
+- T6（自动化检查已完成，真机／老人试用待硬件）：lint 0 错误；单元测试 74/74；`assembleDebug` 产出 APK 10.7MB；合并清单 `RECORD_AUDIO` + `CALL_PHONE`（电话硬件声明可选，AC-26 见验证表）。验证表见下。
+- T7（真实蜂窝拨号 · P1 回退；纯逻辑/构建已验证，模拟器交棒验证见下表，真机拨通待硬件）：把「微信视频较难」时的最基础回退落地——老人上下滑动选家人、点照片拨**真实蜂窝电话**，呼出后由家人微信视频打回来。
+  - 号码按联系人录入（家属页手机号字段，留空=纯演示）；拨号方式是**全局设置** `PhoneDialMethod`：`DIRECT_CALL` 一键直拨（`ACTION_CALL`，需 `CALL_PHONE`，家属选定该项时才申请权限）/ `SYSTEM_DIALER` 系统拨号盘（`ACTION_DIAL`，零权限，需再按拨打键）。
+  - `RealCallPlanner` 纯逻辑失败关闭：号码不可拨（位数/字符非法）→拒绝 `MISSING_BINDING`；`DIRECT_CALL` 未授权→静默退回 `ACTION_DIAL`，绝不报错阻断老人；`Demo` 目标仍走模拟，`WeChatVideo` 仍拒绝（未实现）。
+  - `RealCallGateway` 发拨号 Intent 交棒系统电话；状态机新增 `Handoff` 相（已交系统、App 不可观测接通/挂断，**绝不假装已接通**）；诚实交棒页 `RealCallScreen`（暗化照片+「正在拨打」+「已交给系统电话」+返回，无「模拟」徽标、无假接听/挂断控件）；退后台（onStop）自动复位回老人首页。
+  - 隐私：号码仅存本机私有配置、绑定 `contactId`，**绝不进日志/仓库/公开演示**；网页演示保持纯模拟（虚构号码，不真拨）。
+- 微信真实视频（P1）、远程配置（P3）、自有 RTC（P4）均未启动，单独验证。
 
 ## 验证表（T6）
 
 | 类别 | 项目 | 状态 / 证据 |
 |---|---|---|
 | 已验证 | 构建与静态检查 | `assembleDebug` APK 10.7MB；`lintDebug` 0 错误 |
-| 已验证 | 单元测试 | 55/55（排序/默认/删除/迁移/PIN/媒体绑定/状态机/requestId 幂等/状态短句） |
-| 已验证 | P0 权限最小化（AC-26） | 合并清单仅 `RECORD_AUDIO`，无网络/通讯录/相机/无障碍/位置 |
+| 已验证 | 单元测试 | 74/74（排序/默认/删除/迁移/PIN/媒体绑定/状态机/requestId 幂等/状态短句/真实拨号 planner/号码配置往返/旧配置兼容） |
+| 已验证 | 权限最小化（AC-26） | 合并清单 `RECORD_AUDIO` + `CALL_PHONE`（真实拨号专用、老人点击才触发；电话硬件 `required=false`）；无网络/通讯录/相机/无障碍/位置；`CALL_PHONE` 未授权时静默退回零权限 `ACTION_DIAL` |
 | 已验证 | 家属配置全流程（T2） | `verify_family.py`/`verify_record.py`，持久化+强杀恢复+id 绑定 |
 | 已验证 | 老人首页滑动（T3） | `verify_pager.py`，20 次滑动无越界/误拨、两种模式、单联系人 |
 | 已验证 | 停稳录音与音频焦点（T4） | `verify_audio.py`，logcat 焦点事件为证，无叠音/退后台停播 |
 | 已验证 | 呼叫状态机各分支（T5） | `verify_call.py`，幂等/锁定/接听/无人接听/断网/来电/拒接 |
+| 已验证 | 真实拨号纯逻辑（T7） | `RealCallPlannerTest` 8 项：Demo 保持模拟、非法号码失败关闭、未授权退回 `ACTION_DIAL`、`SYSTEM_DIALER` 零权限、号码归一化；`CallStateMachineTest` Handoff 相 4 项 |
+| 已验证 | 真实拨号模拟器交棒（T7） | 播种 `Phone("5556")`+授权后点照片：logcat `act=android.intent.action.CALL dat=tel:xxxx`（号码系统自动脱敏）、系统 `UserCallActivity` 接管、telecom 生成去电（MO）；诚实交棒页与「返回」回老人首页截图 `screenshots/t7-realcall-*.png`；App 无崩溃 |
+| 尚未验证 | 真实拨号真机拨通（T7） | 需真机+真 SIM（并入任务 #7）；模拟器仅验证交棒，5556 无对端故不能接通 |
 | 尚未验证 | 红米真机试用 | 待用户插 USB 开调试（任务 #7） |
 | 尚未验证 | HyperOS 关怀模式布局／无障碍开启路径 | 待真机（任务 #7） |
 | 尚未验证 | 老人使用测试（识别/误触/耗时） | 需真实老人参与者与知情同意 |
 | 尚未验证 | Compose UI 自动化（androidTest） | 暂以 uiautomator 脚本替代，未编写 instrumented 测试 |
 | 尚未验证 | 微信真实视频（P1） | 未启动，需单独确认+真机（SPEC §14.1） |
-| 已知限制 | P0 呼叫为纯本地模拟 | 设计如此，全程「模拟演示／非真实通话」诚实标注 |
+| 已知限制 | 未设号码=纯本地模拟 | 设计如此，全程「模拟演示／非真实通话」诚实标注；设号码后才真实拨号 |
 | 已知限制 | 模拟器手势阈值 | headless 软件渲染需 300ms 高速度滑动；真机阈值待复核 |
+| 已知限制 | headless 系统电话栈偶发 ANR | 模拟器拨 unreachable 号码时系统 telecom 进程 ANR（「Application Not Responding: system」），非 App 缺陷；真机待复核 |
 | 已知限制 | `minSdk=26` 暂定 | 待目标真机确认 |
 | 已知限制 | TTS 依赖系统中文语音包 | 缺失时静默降级，界面文字仍在 |
 | 已知限制 | 演示素材全虚构 | 公开站点与日志不含真实家属照片/录音/手机号 |
 
 ## 模拟器验证工具（不进 APK）
 
-`tools/emu.py`（uiautomator 辅助）、`tools/seed.py`（run-as 播种 3 位演示联系人，PIN 2468）、`tools/verify_family.py`、`tools/verify_record.py`、`tools/verify_pager.py`、`tools/verify_audio.py`、`tools/verify_call.py`。运行：`cd tools && python verify_family.py`（需 MSYS_NO_PATHCONV=1、PYTHONIOENCODING=utf-8）。
+`tools/emu.py`（uiautomator 辅助）、`tools/seed.py`（run-as 播种 3 位演示联系人，PIN 2468；`--phone 5556` 可给第一位联系人预设虚构号码做真实拨号交棒验证，默认不带号码=纯演示）、`tools/verify_family.py`、`tools/verify_record.py`、`tools/verify_pager.py`、`tools/verify_audio.py`、`tools/verify_call.py`。运行：`cd tools && python verify_family.py`（需 MSYS_NO_PATHCONV=1、PYTHONIOENCODING=utf-8）。
 
 > 模拟器输入注意：本 headless 软件渲染 AVD 上 `input swipe` 慢拖（≥800ms）常被分页器判为未达阈值而不翻页；验证脚本统一用 300ms 高速度滑动 + ≥1.6s 停稳等待，可靠触发单页翻页。

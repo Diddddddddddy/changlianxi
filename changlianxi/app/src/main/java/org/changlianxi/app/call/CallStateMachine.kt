@@ -9,6 +9,8 @@ sealed interface CallPhase {
     data class IncomingDemo(val contactId: String) : CallPhase
     data class Failed(val contactId: String, val reason: CallError) : CallPhase
     data class Finished(val contactId: String) : CallPhase
+    /** 真实呼叫已交系统电话界面；App 不可观测接通/挂断，绝不假装已接通。 */
+    data class Handoff(val contactId: String) : CallPhase
 }
 
 /** 当前状态锁定的联系人 id；Idle 为 null。 */
@@ -20,6 +22,7 @@ val CallPhase.contactIdOrNull: String?
         is CallPhase.IncomingDemo -> contactId
         is CallPhase.Failed -> contactId
         is CallPhase.Finished -> contactId
+        is CallPhase.Handoff -> contactId
         CallPhase.Idle -> null
     }
 
@@ -41,6 +44,7 @@ class CallStateMachine {
             is CallPhase.IncomingDemo -> p.contactId
             is CallPhase.Failed -> p.contactId
             is CallPhase.Finished -> p.contactId
+            is CallPhase.Handoff -> p.contactId
             CallPhase.Idle -> null
         }
 
@@ -68,6 +72,14 @@ class CallStateMachine {
         val p = phase as? CallPhase.Preparing ?: return false
         if (requestId != this.requestId) return false
         phase = CallPhase.DemoRinging(p.contactId)
+        return true
+    }
+
+    /** Preparing → Handoff（真实呼叫已交系统，App 不可观测结果，不进入演示接通）。 */
+    fun handoff(requestId: String): Boolean {
+        val p = phase as? CallPhase.Preparing ?: return false
+        if (requestId != this.requestId) return false
+        phase = CallPhase.Handoff(p.contactId)
         return true
     }
 
